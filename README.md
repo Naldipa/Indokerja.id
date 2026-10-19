@@ -74,7 +74,7 @@ Repository ini juga memiliki konfigurasi `vercel.json` untuk Vercel Hobby. Impor
 - `NODE_ENV`: `production`.
 - `SESSION_COOKIE_SAME_SITE`: `lax`.
 
-Vercel membangun backend Express sebagai Node.js function dan menyajikan frontend Vite dari `frontend/dist`. Build production menjalankan migrasi dan seed demo. Setelah deploy, cek `/api/health`. Paket Hobby gratis ditujukan untuk proyek pribadi/nonkomersial; lihat [batas paket Vercel Hobby](https://vercel.com/docs/plans/hobby). Build perlu terhubung ke Supabase untuk menjalankan migrasi.
+Vercel membangun backend Express sebagai Node.js function dan menyalin frontend Vite ke direktori aset statis `public/`. Build production menjalankan migrasi dan seed demo. Setelah deploy, cek `/api/health`. Paket Hobby gratis ditujukan untuk proyek pribadi/nonkomersial; lihat [batas paket Vercel Hobby](https://vercel.com/docs/plans/hobby). Build perlu terhubung ke Supabase untuk menjalankan migrasi.
 
 ## Akun demo
 
