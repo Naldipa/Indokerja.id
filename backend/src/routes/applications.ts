@@ -29,7 +29,8 @@ router.get("/mine", authenticate, allowRoles(UserRole.JOB_SEEKER), async (req, r
 
 router.patch("/:id/status", authenticate, allowRoles(UserRole.COMPANY), async (req, res) => {
   const { status, note } = z.object({ status: z.enum(["APPLIED", "REVIEWING", "SHORTLISTED", "REJECTED", "ACCEPTED"]), note: z.string().trim().max(500).optional() }).parse(req.body);
-  const application = await prisma.application.findFirst({ where: { id: req.params.id, job: { companyId: req.auth!.id } } });
+  const applicationId = z.string().min(1).parse(req.params.id);
+  const application = await prisma.application.findFirst({ where: { id: applicationId, job: { companyId: req.auth!.id } } });
   if (!application) return res.status(404).json({ error: "Lamaran tidak ditemukan." });
   if (application.status === status) return res.status(400).json({ error: "Status kandidat sudah menggunakan nilai tersebut." });
   const updated = await prisma.$transaction(async (tx) => {

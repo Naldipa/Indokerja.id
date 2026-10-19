@@ -40,13 +40,15 @@ router.post("/", authenticate, allowRoles(UserRole.COMPANY), async (req, res) =>
 });
 
 router.get("/:id", async (req, res) => {
-  const job = await prisma.job.findFirst({ where: { id: req.params.id, isActive: true }, include: jobInclude });
+  const jobId = z.string().min(1).parse(req.params.id);
+  const job = await prisma.job.findFirst({ where: { id: jobId, isActive: true }, include: jobInclude });
   if (!job) return res.status(404).json({ error: "Lowongan tidak ditemukan atau sudah ditutup." });
   return res.json({ job });
 });
 
 router.get("/:id/applications", authenticate, allowRoles(UserRole.COMPANY), async (req, res) => {
-  const job = await prisma.job.findFirst({ where: { id: req.params.id, companyId: req.auth!.id } });
+  const jobId = z.string().min(1).parse(req.params.id);
+  const job = await prisma.job.findFirst({ where: { id: jobId, companyId: req.auth!.id } });
   if (!job) return res.status(404).json({ error: "Lowongan tidak ditemukan." });
   const applications = await prisma.application.findMany({
     where: { jobId: job.id },
