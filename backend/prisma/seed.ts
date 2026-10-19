@@ -1,12 +1,7 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client.js";
 import { JobType, UserRole } from "../src/generated/prisma/enums.js";
 import bcrypt from "bcryptjs";
-
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is required.");
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+import { prisma } from "../src/db.js";
 
 async function main() {
   const passwordHash = await bcrypt.hash("password123", 10);
