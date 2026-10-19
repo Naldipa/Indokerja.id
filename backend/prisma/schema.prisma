@@ -1,0 +1,93 @@
+generator client {
+  provider             = "prisma-client"
+  output               = "../src/generated/prisma"
+  importFileExtension  = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  JOB_SEEKER
+  COMPANY
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  FREELANCE
+}
+
+enum ApplicationStatus {
+  APPLIED
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         UserRole
+  companyName  String?
+  createdAt    DateTime      @default(now())
+  jobs         Job[]         @relation("CompanyJobs")
+  applications Application[] @relation("CandidateApplications")
+  statusChanges ApplicationHistory[] @relation("StatusChangedBy")
+}
+
+model Job {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  location    String
+  salaryMin   Int?
+  salaryMax   Int?
+  type        JobType
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  companyId   String
+  company     User          @relation("CompanyJobs", fields: [companyId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([companyId, isActive])
+  @@index([createdAt])
+}
+
+model Application {
+  id          String              @id @default(cuid())
+  status      ApplicationStatus   @default(APPLIED)
+  coverLetter String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  jobId       String
+  candidateId String
+  job         Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate   User                @relation("CandidateApplications", fields: [candidateId], references: [id], onDelete: Cascade)
+  history     ApplicationHistory[]
+
+  @@unique([jobId, candidateId])
+  @@index([candidateId, createdAt])
+  @@index([jobId, status])
+}
+
+model ApplicationHistory {
+  id            String            @id @default(cuid())
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  note          String?
+  createdAt     DateTime          @default(now())
+  applicationId String
+  changedById   String
+  application   Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedBy     User             @relation("StatusChangedBy", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+}

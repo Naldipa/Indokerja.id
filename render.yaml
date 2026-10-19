@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: indokerja-assessment
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run db:generate && npm run build && npm run db:migrate:deploy && npm run db:seed
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        fromService:
+          type: web
+          name: indokerja-assessment
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: SESSION_COOKIE_SAME_SITE
+        value: lax
