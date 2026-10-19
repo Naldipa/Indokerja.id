@@ -65,6 +65,17 @@ Variabel production: `DATABASE_URL`, `JWT_SECRET` (dibuat acak oleh Render), `NO
 
 Layanan Render gratis dapat tidur saat tidak digunakan; buka URL aplikasi dan tunggu layanan aktif kembali sebelum demo. Setelah deploy, verifikasi `https://<domain>/api/health` mengembalikan `{"status":"ok"}` dan coba kedua akun demo.
 
+### Alternatif gratis tanpa kartu: Vercel Hobby
+
+Repository ini juga memiliki konfigurasi `vercel.json` untuk Vercel Hobby. Import repository GitHub tersebut sebagai proyek personal di Vercel (bukan Pro trial/team berbayar), lalu isi Environment Variables untuk **Production**:
+
+- `DATABASE_URL`: connection string Supabase Session pooler dengan `sslmode=require`.
+- `JWT_SECRET`: secret acak minimal 24 karakter.
+- `NODE_ENV`: `production`.
+- `SESSION_COOKIE_SAME_SITE`: `lax`.
+
+Vercel membangun backend Express sebagai Node.js function dan menyalin frontend Vite ke direktori aset statis. Build production menjalankan migrasi dan seed demo. Setelah deploy, cek `/api/health`. Paket Hobby gratis ditujukan untuk proyek pribadi/nonkomersial; lihat [batas paket Vercel Hobby](https://vercel.com/docs/plans/hobby). Build perlu terhubung ke Supabase untuk menjalankan migrasi.
+
 ## Akun demo
 
 Seed membuat dua akun berikut; keduanya memakai password `password123`.

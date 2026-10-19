@@ -27,7 +27,8 @@ app.use((req, res, next) => {
 
   if (mutatingRequest && hasSessionCookie) {
     const origin = req.get("origin");
-    if (!origin || !allowedOrigins.includes(origin)) {
+    const requestOrigin = `${req.protocol}://${req.get("host")}`;
+    if (!origin || (origin !== requestOrigin && !allowedOrigins.includes(origin))) {
       return res.status(403).json({ error: "Asal permintaan tidak diizinkan." });
     }
   }
@@ -40,7 +41,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
   const frontendDist = resolve(dirname(fileURLToPath(import.meta.url)), "../../../frontend/dist");
   if (existsSync(frontendDist)) {
     app.use(express.static(frontendDist, { index: false, maxAge: "1h" }));
