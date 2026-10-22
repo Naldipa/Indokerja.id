@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown,
-  Clock3, Compass, FilePlus2, FileText, Filter, LogOut, MapPin, Search, Sparkles,
+  Clock3, Compass, FilePlus2, FileText, Filter, LogOut, MapPin, RefreshCw, Search, Sparkles,
   UserRound, Users, X,
 } from "lucide-react";
 import ProfilePage from "./pages/ProfilePage";
@@ -16,7 +16,7 @@ type Job = {
 };
 type HistoryItem = { id: string; fromStatus: Status | null; toStatus: Status; note: string | null; createdAt: string; changedBy?: { name: string; companyName?: string | null } };
 type Application = { id: string; status: Status; coverLetter?: string | null; createdAt: string; job: Job; candidate?: { id: string; name: string; email: string }; history: HistoryItem[] };
-type Page = "jobs" | "applications" | "company" | "candidates" | "create" | "profile";
+type Page = "jobs" | "applications" | "company" | "companyCandidates" | "create" | "profile";
 type ApiError = Error & { status?: number };
 
 const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
@@ -58,9 +58,10 @@ function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [companyJobs, setCompanyJobs] = useState<Job[]>([]);
+  const [companyApplications, setCompanyApplications] = useState<Application[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [activeJob, setActiveJob] = useState<Job | null>(null);
-  const [candidateApplications, setCandidateApplications] = useState<Application[]>([]);
+  const [candidateJobFilter, setCandidateJobFilter] = useState<string | null>(null);
+  const [companyApplicationsError, setCompanyApplicationsError] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
   const [filters, setFilters] = useState({ q: "", location: "", type: "" });
@@ -106,6 +107,24 @@ function App() {
     const data = await request<{ jobs: Job[] }>("/jobs/company/mine");
     setCompanyJobs(data.jobs);
   }, [user]);
+  const loadCompanyApplications = useCallback(async () => {
+    if (!user || user.role !== "COMPANY") return;
+    setCompanyApplicationsError("");
+    try {
+      const data = await request<{ applications: Application[] }>("/applications/company");
+      setCompanyApplications(data.applications);
+    } catch (error) {
+      setCompanyApplicationsError((error as Error).message);
+      throw error;
+    }
+  }, [user]);
+  const refreshCompanyApplications = async () => {
+    if (loading) return;
+    setLoading(true);
+    try { await loadCompanyApplications(); }
+    catch (error) { notify((error as Error).message); }
+    finally { setLoading(false); }
+  };
 
   useEffect(() => {
     if (user?.role === "JOB_SEEKER") loadApplications().catch((error: Error) => notify(error.message));
@@ -124,18 +143,23 @@ function App() {
     setLoading(true); loadCompanyJobs().catch((error: Error) => notify(error.message)).finally(() => setLoading(false));
   }, [user, page, loadCompanyJobs]);
 
-  const openCandidates = async (job: Job) => {
-    setActiveJob(job); setPage("candidates"); setLoading(true);
-    try {
-      const data = await request<{ applications: Application[] }>(`/jobs/${job.id}/applications`);
-      setCandidateApplications(data.applications);
-    } catch (error) { notify((error as Error).message); }
-    finally { setLoading(false); }
+  useEffect(() => {
+    if (!user || user.role !== "COMPANY" || page !== "companyCandidates") return;
+    setLoading(true); loadCompanyApplications().catch((error: Error) => notify(error.message)).finally(() => setLoading(false));
+  }, [user, page, loadCompanyApplications]);
+
+  const openCandidates = (job: Job) => {
+    setCandidateJobFilter(job.id);
+    setPage("companyCandidates");
+  };
+  const openAllCandidates = () => {
+    setCandidateJobFilter(null);
+    setPage("companyCandidates");
   };
   const updateStatus = async (applicationId: string, status: Status) => {
     try {
       await request(`/applications/${applicationId}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      if (activeJob) await openCandidates(activeJob);
+      await loadCompanyApplications();
       notify("Status kandidat berhasil diperbarui.");
     } catch (error) { notify((error as Error).message); }
   };
@@ -146,7 +170,7 @@ function App() {
   const isSeeker = user.role === "JOB_SEEKER";
   const nav = isSeeker
     ? [{ id: "jobs" as Page, label: "Cari pekerjaan", icon: Compass }, { id: "applications" as Page, label: "Lamaran saya", icon: FileText }]
-    : [{ id: "company" as Page, label: "Dashboard", icon: BriefcaseBusiness }];
+    : [{ id: "company" as Page, label: "Dashboard", icon: BriefcaseBusiness }, { id: "companyCandidates" as Page, label: "Daftar kandidat", icon: Users }];
 
   return (
     <div className="app-shell">
@@ -158,7 +182,7 @@ function App() {
         <div className="workspace-switch"><div className="workspace-avatar">{isSeeker ? user.name.charAt(0) : (user.companyName || user.name).charAt(0)}</div><div className="workspace-copy"><strong>{isSeeker ? "Job seeker" : user.companyName || "Company"}</strong><span>{isSeeker ? "Mode pencari kerja" : "Recruitment workspace"}</span></div><ChevronDown size={15} /></div>
         <nav className="side-nav">
           <span className="nav-caption">MENU UTAMA</span>
-          {nav.map((item) => <button key={item.id} title={item.label} aria-label={item.label} className={`nav-item ${page === item.id || (item.id === "jobs" && selectedJob) ? "active" : ""}`} onClick={() => { setPage(item.id); setSelectedJob(null); }}><item.icon size={18} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "applications" && applications.length > 0 && <span className="nav-count">{applications.length}</span>}</button>)}
+          {nav.map((item) => <button key={item.id} title={item.label} aria-label={item.label} className={`nav-item ${page === item.id || (item.id === "jobs" && selectedJob) ? "active" : ""}`} onClick={() => { setPage(item.id); setSelectedJob(null); if (item.id === "companyCandidates") setCandidateJobFilter(null); }}><item.icon size={18} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "applications" && applications.length > 0 && <span className="nav-count">{applications.length}</span>}{item.id === "companyCandidates" && companyJobs.length > 0 && <span className="nav-count">{companyJobs.reduce((sum, job) => sum + (job._count?.applications ?? 0), 0)}</span>}</button>)}
           {!isSeeker && <button title="Buat lowongan" aria-label="Buat lowongan" className={`nav-item ${page === "create" ? "active" : ""}`} onClick={() => setPage("create")}><FilePlus2 size={18} strokeWidth={1.8} /><span>Buat lowongan</span></button>}
           <button title="Profil" aria-label="Profil" className={`nav-item ${page === "profile" ? "active" : ""}`} onClick={() => { setPage("profile"); setSelectedJob(null); }}><UserRound size={18} strokeWidth={1.8} /><span>Profil</span></button>
         </nav>
@@ -174,9 +198,9 @@ function App() {
             ? <JobDetail job={selectedJob} applied={applications.some((application) => application.job.id === selectedJob.id)} onBack={() => setSelectedJob(null)} onApplied={async () => { await loadApplications(); setPage("applications"); setSelectedJob(null); notify("Lamaran berhasil dikirim. Semoga sukses!"); }} onError={(message) => notify(message)} />
             : <JobBoard jobs={jobs} filters={filters} setFilters={setFilters} filterOpen={filterOpen} setFilterOpen={setFilterOpen} loading={loading} onSearch={loadJobs} onOpen={setSelectedJob} />)}
           {isSeeker && page === "applications" && <ApplicationsPage applications={applications} loading={loading} />}
-          {!isSeeker && page === "company" && <CompanyDashboard user={user} jobs={companyJobs} loading={loading} onCreate={() => setPage("create")} onCandidates={openCandidates} />}
+          {!isSeeker && page === "company" && <CompanyDashboard user={user} jobs={companyJobs} loading={loading} onCreate={() => setPage("create")} onCandidates={openCandidates} onAllCandidates={openAllCandidates} />}
+          {!isSeeker && page === "companyCandidates" && <CompanyApplicationsPage applications={companyApplications} jobs={companyJobs} jobFilterId={candidateJobFilter} error={companyApplicationsError} loading={loading} onClearJobFilter={() => setCandidateJobFilter(null)} onRefresh={refreshCompanyApplications} onStatus={updateStatus} />}
           {!isSeeker && page === "create" && <CreateJob onCancel={() => setPage("company")} onCreated={async () => { await loadCompanyJobs(); setPage("company"); notify("Lowongan baru berhasil diterbitkan."); }} onError={(message) => notify(message)} />}
-          {!isSeeker && page === "candidates" && <CandidatesPage job={activeJob} applications={candidateApplications} loading={loading} onBack={() => setPage("company")} onStatus={updateStatus} />}
           {page === "profile" && <ProfilePage user={user} onSave={async (profile) => {
             const response = await request<{ user: User }>("/auth/me", { method: "PATCH", body: JSON.stringify(profile) });
             setUser(response.user); notify("Profil berhasil diperbarui.");
@@ -189,7 +213,7 @@ function App() {
 }
 
 function pageTitle(page: Page) {
-  return ({ jobs: "Cari pekerjaan", applications: "Lamaran saya", company: "Dashboard", candidates: "Kandidat", create: "Buat lowongan", profile: "Profil" } as const)[page];
+  return ({ jobs: "Cari pekerjaan", applications: "Lamaran saya", company: "Dashboard", companyCandidates: "Daftar kandidat", create: "Buat lowongan", profile: "Profil" } as const)[page];
 }
 
 function Login({ onLogin }: { onLogin: (user: User) => void }) {
@@ -263,15 +287,119 @@ function HistoryTimeline({ history }: { history: HistoryItem[] }) {
   return <div className="timeline">{history.length ? history.map((item, index) => <div className="timeline-item" key={item.id}><span className={`timeline-dot ${index === 0 ? "current" : ""}`}/><div><strong>{statusLabels[item.toStatus]}</strong><span>{item.note || (item.fromStatus ? `Status diperbarui dari ${statusLabels[item.fromStatus]}.` : "Lamaran berhasil dikirim.")}</span></div><time>{dateLabel(item.createdAt)}</time></div>) : <span className="no-history">Belum ada riwayat perubahan.</span>}</div>;
 }
 
-function CompanyDashboard({ user, jobs, loading, onCreate, onCandidates }: { user: User; jobs: Job[]; loading: boolean; onCreate: () => void; onCandidates: (job: Job) => void }) {
+function CompanyDashboard({ user, jobs, loading, onCreate, onCandidates, onAllCandidates }: {
+  user: User;
+  jobs: Job[];
+  loading: boolean;
+  onCreate: () => void;
+  onCandidates: (job: Job) => void;
+  onAllCandidates: () => void;
+}) {
   const applicantCount = jobs.reduce((total, job) => total + (job._count?.applications || 0), 0);
-  return <><section className="page-heading company-heading"><div><span className="section-kicker">RECRUITMENT WORKSPACE</span><h1>Selamat datang, <span>{user.companyName || user.name.split(" ")[0]}.</span></h1><p>Temukan rekan kerja berikutnya untuk membangun hal besar.</p></div><button className="primary-button create-top-button" onClick={onCreate}><FilePlus2 size={17}/>Buat lowongan</button></section><div className="company-metrics"><MetricCard label="Lowongan aktif" value={String(jobs.length).padStart(2, "0")} icon={<BriefcaseBusiness size={18}/>} tone="green" caption="Peluang yang sedang dibuka"/><MetricCard label="Total kandidat" value={String(applicantCount).padStart(2, "0")} icon={<Users size={18}/>} tone="peach" caption="Lamaran untuk ditinjau"/><MetricCard label="Perusahaan" value="✓" icon={<Building2 size={18}/>} tone="lavender" caption="Profil perusahaan aktif"/></div><div className="section-title-row company-title-row"><div><h2>Lowonganmu</h2><p>Kelola posisi dan tinjau kandidat yang masuk.</p></div><button className="inline-link" onClick={onCreate}>Tambah lowongan <ArrowRight size={15}/></button></div>{loading ? <div className="loading-state"><span className="loader"/>Memuat lowongan...</div> : jobs.length ? <div className="company-job-list">{jobs.map((job) => <article className="company-job-card" key={job.id}><div className="company-job-main"><div className="company-logo mint">{companyOf(job).split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div><div><h3>{job.title}</h3><p>{job.location} <span>·</span> {typeLabels[job.type]}</p></div></div><div className="company-job-salary">{salaryLabel(job)}</div><div className="candidate-count"><Users size={16}/><strong>{job._count?.applications ?? 0}</strong><span>kandidat</span></div><button className="outline-button" onClick={() => onCandidates(job)}>Lihat kandidat <ArrowRight size={14}/></button></article>)}</div> : <EmptyState icon={<BriefcaseBusiness size={23}/>} title="Belum ada lowongan aktif" body="Buat lowongan pertamamu dan temukan kandidat yang tepat." action={<button className="primary-button" onClick={onCreate}>Buat lowongan <ArrowRight size={16}/></button>}/>}<div className="bottom-note"><span className="note-line"/><span>Talenta terbaik dimulai dari kesempatan yang tepat</span><Sparkles size={14}/><span className="note-line"/></div></>;
+  return <>
+    <section className="page-heading company-heading">
+      <div>
+        <span className="section-kicker">RECRUITMENT WORKSPACE</span>
+        <h1>Selamat datang, <span>{user.companyName || user.name.split(" ")[0]}.</span></h1>
+        <p>Temukan rekan kerja berikutnya untuk membangun hal besar.</p>
+      </div>
+      <button className="primary-button create-top-button" onClick={onCreate}><FilePlus2 size={17}/>Buat lowongan</button>
+    </section>
+    <div className="company-metrics">
+      <MetricCard label="Lowongan aktif" value={String(jobs.length).padStart(2, "0")} icon={<BriefcaseBusiness size={18}/>} tone="green" caption="Peluang yang sedang dibuka"/>
+      <button className="metric-card metric-card-action" onClick={onAllCandidates} aria-label={`Lihat ${applicantCount} kandidat`}>
+        <span className="metric-icon peach"><Users size={18}/></span>
+        <span className="metric-label">Total kandidat</span>
+        <strong>{String(applicantCount).padStart(2, "0")}</strong>
+        <small>Buka daftar kandidat →</small>
+      </button>
+      <MetricCard label="Perusahaan" value="✓" icon={<Building2 size={18}/>} tone="lavender" caption="Profil perusahaan aktif"/>
+    </div>
+    <div className="section-title-row company-title-row">
+      <div><h2>Lowonganmu</h2><p>Kelola posisi dan tinjau kandidat yang masuk.</p></div>
+      <div className="company-header-actions">
+        <button className="inline-link" onClick={onAllCandidates}>Semua kandidat <ArrowRight size={15}/></button>
+        <button className="inline-link" onClick={onCreate}>Tambah lowongan <ArrowRight size={15}/></button>
+      </div>
+    </div>
+    {loading ? <div className="loading-state"><span className="loader"/>Memuat lowongan...</div> : jobs.length ? <div className="company-job-list">{jobs.map((job) => <article className="company-job-card" key={job.id}>
+      <div className="company-job-main"><div className="company-logo mint">{companyOf(job).split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div><div><h3>{job.title}</h3><p>{job.location} <span>·</span> {typeLabels[job.type]}</p></div></div>
+      <div className="company-job-salary">{salaryLabel(job)}</div>
+      <div className="candidate-count"><Users size={16}/><strong>{job._count?.applications ?? 0}</strong><span>kandidat</span></div>
+      <button className="outline-button" onClick={() => onCandidates(job)}>Lihat kandidat <ArrowRight size={14}/></button>
+    </article>)}</div> : <EmptyState icon={<BriefcaseBusiness size={23}/>} title="Belum ada lowongan aktif" body="Buat lowongan pertamamu dan temukan kandidat yang tepat." action={<button className="primary-button" onClick={onCreate}>Buat lowongan <ArrowRight size={16}/></button>}/>}
+    <div className="bottom-note"><span className="note-line"/><span>Talenta terbaik dimulai dari kesempatan yang tepat</span><Sparkles size={14}/><span className="note-line"/></div>
+  </>;
 }
 function MetricCard({ label, value, icon, tone, caption }: { label: string; value: string; icon: ReactNode; tone: string; caption: string }) { return <div className="metric-card"><span className={`metric-icon ${tone}`}>{icon}</span><div className="metric-label">{label}</div><strong>{value}</strong><small>{caption}</small></div>; }
 
-function CandidatesPage({ job, applications, loading, onBack, onStatus }: { job: Job | null; applications: Application[]; loading: boolean; onBack: () => void; onStatus: (applicationId: string, status: Status) => void }) {
+function CompanyApplicationsPage({ applications, jobs, jobFilterId, error, loading, onClearJobFilter, onRefresh, onStatus }: {
+  applications: Application[];
+  jobs: Job[];
+  jobFilterId: string | null;
+  error: string;
+  loading: boolean;
+  onClearJobFilter: () => void;
+  onRefresh: () => Promise<void>;
+  onStatus: (applicationId: string, status: Status) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Status | "">("");
+  const [selectedJobId, setSelectedJobId] = useState(jobFilterId || "");
   const [expanded, setExpanded] = useState<string | null>(null);
-  return <><button className="back-link" onClick={onBack}><ArrowLeft size={16}/>Kembali ke dashboard</button><section className="page-heading candidates-heading"><div><span className="section-kicker">PIPELINE KANDIDAT</span><h1>{job?.title || "Kandidat"}<span>.</span></h1><p>{job?.location} <span>·</span> {job?.type ? typeLabels[job.type] : ""}</p></div><div className="candidate-total"><strong>{applications.length}</strong><span>kandidat</span></div></section><div className="section-title-row"><div><h2>Daftar kandidat</h2><p>Perbarui status kandidat untuk mencatat progres seleksi.</p></div></div>{loading ? <div className="loading-state"><span className="loader"/>Memuat kandidat...</div> : applications.length ? <div className="candidate-list">{applications.map((application) => <article className="candidate-card" key={application.id}><div className="candidate-avatar">{application.candidate?.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</div><div className="candidate-info"><h3>{application.candidate?.name}</h3><span>{application.candidate?.email}</span><p>Melamar {dateLabel(application.createdAt)}</p>{application.coverLetter && <blockquote>“{application.coverLetter}”</blockquote>}{expanded === application.id && <HistoryTimeline history={application.history}/>}</div><div className="candidate-actions"><StatusBadge status={application.status}/><label className="status-select-label">Ubah status<select aria-label={`Ubah status ${application.candidate?.name}`} value={application.status} onChange={(event) => onStatus(application.id, event.target.value as Status)}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown size={13}/></label><button className="history-toggle" onClick={() => setExpanded(expanded === application.id ? null : application.id)}>{expanded === application.id ? "Tutup riwayat" : "Riwayat status"}<ChevronDown size={14} className={expanded === application.id ? "rotate" : ""}/></button></div></article>)}</div> : <EmptyState icon={<Users size={23}/>} title="Belum ada kandidat" body="Lamaran yang masuk untuk posisi ini akan muncul di sini."/>}</>;
+  useEffect(() => setSelectedJobId(jobFilterId || ""), [jobFilterId]);
+  const normalizedQuery = query.trim().toLocaleLowerCase("id-ID");
+  const filteredApplications = applications.filter((application) => {
+    const candidate = application.candidate;
+    const matchesQuery = !normalizedQuery || [candidate?.name, candidate?.email, application.job.title, application.job.location]
+      .some((value) => value?.toLocaleLowerCase("id-ID").includes(normalizedQuery));
+    const matchesJob = !selectedJobId || application.job.id === selectedJobId;
+    return matchesQuery && matchesJob && (!statusFilter || application.status === statusFilter);
+  });
+  const selectedJob = jobs.find((job) => job.id === selectedJobId);
+
+  return <>
+    <section className="page-heading compact-heading">
+      <div><span className="section-kicker">RECRUITMENT WORKSPACE</span><h1>{selectedJob ? <>Kandidat <span>lowongan.</span></> : <>Daftar <span>kandidat.</span></>}</h1><p>{selectedJob ? `Pelamar untuk ${selectedJob.title}.` : "Semua pelamar untuk lowongan yang dikelola perusahaan Anda."}</p></div>
+      <div className="candidate-total"><strong>{filteredApplications.length}</strong><span>ditampilkan</span></div>
+    </section>
+    <div className="company-applications-toolbar">
+      <label className="candidate-search"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, email, atau lowongan" /></label>
+      <label className="candidate-job-filter"><span>Lowongan</span><select value={selectedJobId} onChange={(event) => setSelectedJobId(event.target.value)}>
+        <option value="">Semua lowongan</option>
+        {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
+      </select></label>
+      <label className="candidate-status-filter"><span>Filter status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as Status | "")}>
+        <option value="">Semua status</option>
+        {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select></label>
+      {jobFilterId && <button className="clear-job-filter" onClick={onClearJobFilter}>Tampilkan semua kandidat</button>}
+      <button className="outline-button refresh-candidates" onClick={() => { void onRefresh().catch(() => undefined); }} disabled={loading}><RefreshCw size={14}/>Muat ulang</button>
+    </div>
+    {loading ? <div className="loading-state"><span className="loader"/>Memuat daftar kandidat...</div> : error ? <EmptyState icon={<RefreshCw size={23}/>} title="Daftar kandidat gagal dimuat" body={error} action={<button className="primary-button" onClick={() => { void onRefresh().catch(() => undefined); }}>Coba lagi <RefreshCw size={14}/></button>}/> : filteredApplications.length ? <div className="candidate-list company-applications-list">{filteredApplications.map((application) => {
+      const candidateName = application.candidate?.name || "Kandidat";
+      const initials = candidateName.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+      return <article className="candidate-card" key={application.id}>
+        <div className="candidate-avatar">{initials}</div>
+        <div className="candidate-info">
+          <h3>{candidateName}</h3>
+          <span>{application.candidate?.email || "Email tidak tersedia"}</span>
+          <p className="candidate-job-meta"><strong>{application.job.title}</strong><span>{application.job.location} · Dilamar {dateLabel(application.createdAt)}</span></p>
+          {application.coverLetter && <blockquote>“{application.coverLetter}”</blockquote>}
+          {expanded === application.id && <HistoryTimeline history={application.history}/>}
+        </div>
+        <div className="candidate-actions">
+          <StatusBadge status={application.status}/>
+          <label className="status-select-label">Ubah status<select aria-label={`Ubah status ${candidateName}`} value={application.status} onChange={(event) => onStatus(application.id, event.target.value as Status)}>
+            {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select><ChevronDown size={13}/></label>
+          <button className="history-toggle" onClick={() => setExpanded(expanded === application.id ? null : application.id)}>
+            {expanded === application.id ? "Tutup riwayat" : "Riwayat status"}<ChevronDown size={14} className={expanded === application.id ? "rotate" : ""}/>
+          </button>
+        </div>
+      </article>;
+    })}</div> : applications.length ? <EmptyState icon={<Search size={23}/>} title="Kandidat tidak ditemukan" body="Ubah kata kunci atau filter untuk melihat hasil lain."/> : selectedJob ? <EmptyState icon={<Users size={23}/>} title="Belum ada pelamar untuk lowongan ini" body="Pelamar untuk posisi ini akan muncul di sini setelah Job Seeker mengirim lamaran."/> : <EmptyState icon={<Users size={23}/>} title="Belum ada kandidat yang melamar" body="Lamaran untuk lowongan milik perusahaan Anda akan muncul di halaman ini."/>}
+  </>;
 }
 
 function CreateJob({ onCancel, onCreated, onError }: { onCancel: () => void; onCreated: () => void; onError: (message: string) => void }) {

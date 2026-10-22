@@ -30,6 +30,7 @@ Untuk request perubahan data dengan cookie sesi, API memeriksa header `Origin` t
 | `GET` | `/jobs/:id/applications` | Company | Kandidat dan histori pada lowongan miliknya |
 | `POST` | `/applications` | Job seeker | Mengirim lamaran |
 | `GET` | `/applications/mine` | Job seeker | Daftar lamaran dan histori miliknya |
+| `GET` | `/applications/company` | Company | Daftar semua lamaran pada lowongan milik company login |
 | `PATCH` | `/applications/:id/status` | Company | Mengubah status kandidat pada lowongan miliknya |
 
 `GET /jobs` menerima query opsional `q`, `location`, dan `type`. Tipe pekerjaan: `FULL_TIME`, `PART_TIME`, `CONTRACT`, `INTERNSHIP`, `FREELANCE`.

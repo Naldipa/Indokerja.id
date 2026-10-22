@@ -27,6 +27,27 @@ router.get("/mine", authenticate, allowRoles(UserRole.JOB_SEEKER), async (req, r
   return res.json({ applications });
 });
 
+router.get("/company", authenticate, allowRoles(UserRole.COMPANY), async (req, res) => {
+  const applications = await prisma.application.findMany({
+    where: { job: { companyId: req.auth!.id } },
+    include: {
+      candidate: { select: { id: true, name: true, email: true } },
+      job: {
+        include: {
+          company: { select: { id: true, companyName: true, name: true } },
+        },
+      },
+      history: {
+        orderBy: { createdAt: "desc" },
+        include: { changedBy: { select: { name: true, companyName: true } } },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return res.json({ applications });
+});
+
 router.patch("/:id/status", authenticate, allowRoles(UserRole.COMPANY), async (req, res) => {
   const { status, note } = z.object({ status: z.enum(["APPLIED", "REVIEWING", "SHORTLISTED", "REJECTED", "ACCEPTED"]), note: z.string().trim().max(500).optional() }).parse(req.body);
   const applicationId = z.string().min(1).parse(req.params.id);

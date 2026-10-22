@@ -211,7 +211,12 @@ textarea::placeholder, input::placeholder { color: #aab0a8; }
 .metric-label { color: #8b938b; font-size: 9px; margin-bottom: 3px; }
 .metric-card > strong { display: block; color: #2c3b30; font: 700 22px Manrope,sans-serif; }
 .metric-card > small { color: #a0a69f; font-size: 8px; position: absolute; right: 14px; bottom: 16px; }
+.metric-card-action { appearance: none; width: 100%; text-align: left; cursor: pointer; font: inherit; transition: border-color .16s, background .16s; }
+.metric-card-action:hover { border-color: #cfdfce; background: #fcfdfb; }
+.metric-card-action:focus-visible { outline: 2px solid #558d61; outline-offset: 2px; }
+.metric-card-action > small { color: #57805e; font-weight: 600; }
 .company-title-row { margin-bottom: 13px; }
+.company-header-actions { display: flex; align-items: center; gap: 18px; }
 .company-job-card { display: flex; align-items: center; gap: 15px; background: #fff; border: 1px solid #e9ede7; border-radius: 9px; padding: 12px 14px; }
 .company-job-main { display: flex; align-items: center; gap: 10px; min-width: 200px; flex: 1; }
 .company-job-main h3 { font: 700 11px Manrope,sans-serif; color: #364238; margin: 0 0 5px; }
@@ -233,6 +238,20 @@ textarea::placeholder, input::placeholder { color: #aab0a8; }
 .candidate-info > span { font-size: 9px; color: #8d958d; }
 .candidate-info > p { margin: 9px 0 0; display: flex; align-items: center; gap: 5px; color: #a0a79f; font-size: 8px; }
 .candidate-info blockquote { border-left: 2px solid #dce9dc; color: #7a867a; margin: 11px 0 2px; padding: 3px 0 3px 9px; font-size: 9px; line-height: 1.6; }
+.candidate-job-meta { margin: 9px 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; color: #8a948a; font-size: 9px; }
+.candidate-job-meta strong { color: #536353; font-size: 9px; }
+.company-applications-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 13px; border: 1px solid #e9ede7; border-radius: 9px; background: #fff; }
+.candidate-search { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 180px; height: 36px; padding: 0 10px; border: 1px solid #e6ebe4; border-radius: 6px; color: #8c978b; }
+.candidate-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #445247; background: transparent; font: 10px "DM Sans",sans-serif; }
+.candidate-search input::placeholder { color: #a1a99f; }
+.candidate-status-filter { display: flex; align-items: center; gap: 7px; color: #8a948a; font-size: 9px; white-space: nowrap; }
+.candidate-status-filter select { height: 36px; padding: 0 25px 0 9px; border: 1px solid #e6ebe4; border-radius: 6px; outline: 0; color: #58665a; background: #fff; font: 10px "DM Sans",sans-serif; }
+.candidate-job-filter { display: flex; align-items: center; gap: 7px; color: #8a948a; font-size: 9px; white-space: nowrap; }
+.candidate-job-filter select { max-width: 180px; height: 36px; padding: 0 25px 0 9px; border: 1px solid #e6ebe4; border-radius: 6px; outline: 0; color: #58665a; background: #fff; font: 10px "DM Sans",sans-serif; }
+.clear-job-filter { border: 0; padding: 0 3px; color: #42714c; background: transparent; font: 600 9px "DM Sans",sans-serif; white-space: nowrap; cursor: pointer; }
+.clear-job-filter:hover { text-decoration: underline; }
+.refresh-candidates { height: 36px; }
+.company-applications-list .candidate-card { align-items: center; }
 .candidate-actions { display: flex; align-items: flex-end; flex-direction: column; gap: 10px; }
 .status-select-label { position: relative; color: #9aa198; font-size: 8px; display: flex; align-items: center; gap: 5px; }
 .status-select-label select { appearance: none; border: 1px solid #e6ebe4; border-radius: 5px; padding: 5px 20px 5px 7px; max-width: 117px; background: white; color: #637064; font-size: 8px; }
@@ -380,6 +399,8 @@ button:disabled { cursor: not-allowed; opacity: .7; }
   .apply-card { position: static; }
   .company-metrics { gap: 7px; }
   .metric-card { padding: 11px; min-height: 120px; }
+  .company-applications-toolbar { flex-wrap: wrap; }
+  .candidate-search { flex-basis: 100%; }
   .metric-card > small { position: static; display: block; margin-top: 4px; line-height: 1.4; }
   .metric-label { font-size: 8px; }
   .company-job-card { gap: 10px; }
@@ -421,6 +442,8 @@ button:disabled { cursor: not-allowed; opacity: .7; }
   .status-badge { font-size: 7px; padding: 5px 6px; }
   .application-meta { flex-wrap: wrap; gap: 4px; }
   .company-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .company-header-actions { gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+  .company-header-actions .inline-link { font-size: 8px; }
   .metric-card { min-width: 0; padding: 8px; }
   .metric-icon { width: 26px; height: 26px; }
   .metric-label { min-height: 20px; line-height: 1.3; }
@@ -428,6 +451,15 @@ button:disabled { cursor: not-allowed; opacity: .7; }
   .company-job-main h3 { font-size: 10px; }
   .company-job-main p { font-size: 8px; }
   .candidate-actions { gap: 7px; }
+  .company-applications-toolbar { align-items: stretch; gap: 8px; padding: 9px; }
+  .candidate-job-filter { flex: 1; justify-content: space-between; }
+  .candidate-job-filter select { min-width: 0; max-width: none; flex: 1; }
+  .candidate-status-filter { flex: 1; justify-content: space-between; }
+  .candidate-status-filter select { min-width: 0; flex: 1; }
+  .refresh-candidates { justify-content: center; }
+  .company-applications-list .candidate-card { flex-wrap: wrap; }
+  .company-applications-list .candidate-info { flex: 1 1 calc(100% - 48px); }
+  .company-applications-list .candidate-actions { flex: 1 1 100%; flex-direction: row; align-items: center; justify-content: space-between; }
   .candidate-actions > .status-badge { max-width: 95px; }
   .status-select-label { font-size: 0; }
   .status-select-label select { max-width: 94px; font-size: 7px; }
